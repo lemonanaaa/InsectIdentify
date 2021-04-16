@@ -85,6 +85,9 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
     val_dataset = MyDataset(val_dirpath, val_transform)
     val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
 
+    for type_id, loader in enumerate([train_loader, val_loader]):
+        print(type_id,loader)
+
     opt = torch.optim.SGD(sgd_lr, params=model.parameters())
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
@@ -98,7 +101,7 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
             mean_loss = []
             mean_acc = []
             for images, labels in loader:
-                if type_id == 0:
+                if type_id == 0:#训练集
                     # opt_step.step()
                     model.train()
                 else:
@@ -116,7 +119,7 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
                 acc = torch.sum(pre_labels == labels) / torch.tensor(labels.shape[0], dtype=torch.float32)
                 mean_loss.append(loss.cpu().detach().numpy())
                 mean_acc.append(acc.cpu().detach().numpy())
-            if type_id == 1:
+            if type_id == 1:#验证集
                 epoch_acc.append(np.mean(mean_acc))
                 epoch_loss.append(np.mean(mean_loss))
                 if max_acc < np.mean(mean_acc):
@@ -127,27 +130,33 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
     return model
 
 
-# 分布实现训练和预测的transform
-train_transform = transforms.Compose([
-    transforms.Grayscale(3),
-    transforms.RandomResizedCrop(224),  # 随机裁剪一个area然后再resize
-    transforms.RandomHorizontalFlip(),  # 随机水平翻转
-    transforms.Resize(size=(256, 256)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
-val_transform = transforms.Compose([
-    transforms.Grayscale(3),
-    transforms.Resize(size=(256, 256)),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
-# 分别实现loader
-train_dirpath = 'G:\\比赛\\软件杯\\林业害虫识别\\phClass\\hymenoptera_data\\train'
-val_dirpath = 'G:\\比赛\\软件杯\\林业害虫识别\\phClass\\hymenoptera_data\\val'
-
-train_dataset = MyDataset(train_dirpath, train_transform)
-train_loader = DataLoader(train_dataset, shuffle=True, batch_size=32)
-val_dataset = MyDataset(val_dirpath, val_transform)
-val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
+# # 分布实现训练和预测的transform
+# train_transform = transforms.Compose([
+#     transforms.Grayscale(3),
+#     transforms.RandomResizedCrop(224),  # 随机裁剪一个area然后再resize
+#     transforms.RandomHorizontalFlip(),  # 随机水平翻转
+#     transforms.Resize(size=(256, 256)),
+#     transforms.ToTensor(),
+#     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# ])
+# val_transform = transforms.Compose([
+#     transforms.Grayscale(3),
+#     transforms.Resize(size=(256, 256)),
+#     transforms.CenterCrop(224),
+#     transforms.ToTensor(),
+#     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# ])
+#
+# model = models.resnet34(pretrained=True)  # 使用预训练
+# print(model)
+# print(model._buffers)
+#
+# # 分别实现loader
+# train_dirpath = 'G:\\比赛\\软件杯\\林业害虫识别\\phClass\\hymenoptera_data\\train'
+# val_dirpath = 'G:\\比赛\\软件杯\\林业害虫识别\\phClass\\hymenoptera_data\\val'
+#
+# train_dataset = MyDataset(train_dirpath, train_transform)
+# train_loader = DataLoader(train_dataset, shuffle=True, batch_size=32)
+# val_dataset = MyDataset(val_dirpath, val_transform)
+# val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
+train(get_pre_model())
