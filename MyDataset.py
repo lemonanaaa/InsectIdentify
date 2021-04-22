@@ -1,7 +1,6 @@
 from torch.utils.data import DataLoader, Dataset
 from PIL import Image
 
-
 # 实现自己的Dataset方法，主要实现两个方法__len__和__getitem__
 class MyDataset(Dataset):
     def __init__(self, classes=[], images=[], transform=None):

@@ -26,7 +26,6 @@ def train(dataPath, epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01)
     train_loader, val_loader, classes = getDataLoader(dataPath)
     # 获取model
     model = get_pre_model(len(classes))
-    model = models.resnet18(pretrained=True)  # 使用预训练
 
     # 优化函数(用于梯度下降)     model.parameters()为该实例中可优化的参数
     opt = torch.optim.SGD(lr=sgd_lr, params=model.parameters())
@@ -76,6 +75,3 @@ def train(dataPath, epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01)
     model.fc = copy.copy(fcWithMaxAcc)
     torch.save(model, './model/myModel'+max_acc+'.pkl')
     return model
-
-
-train(dataPath="")
