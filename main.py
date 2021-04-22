@@ -6,14 +6,11 @@ from torchvision import datasets, transforms, models
 import torch
 from torch.utils.data import DataLoader, Dataset
 import os
-# import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import copy
 
-
-# unzip('./data/hymenoptera_data.zip', './data/')
 
 # 实现自己的Dataset方法，主要实现两个方法__len__和__getitem__
 class MyDataset(Dataset):
@@ -42,15 +39,22 @@ class MyDataset(Dataset):
         return self.classes
 
 
-def get_pre_model(only_train_fc=True):
+def get_pre_model(fc_out_features: int, only_train_fc=True):
+    '''
+
+    :param fc_out_features: 分类树木，即为全连接层的输出单元数
+    :param only_train_fc: 是否只训练全连接层
+    :return:
+    '''
     model = models.resnet18(pretrained=True)  # 使用预训练
+
+    # 先将所有的参数设置为不进行梯度下降
     if only_train_fc:
         for param in model.parameters():
             param.requires_grad_(False)
+    # 将全连接层设置为进行梯度下降
     fc_in_features = model.fc.in_features
-    model.fc = torch.nn.Linear(fc_in_features, 2, bias=True)
-    # print(model.parameters())
-    return model
+    model.fc = torch.nn.Linear(fc_in_features, fc_out_features, bias=True)
 
 
 def print_buffers(model):
@@ -61,8 +65,24 @@ def print_buffers(model):
             print(i)
 
 
-def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
+def train(model, epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
           train_dirpath='./hymenoptera_data/train', val_dirpath='./hymenoptera_data/val'):
+    '''
+
+    :param model: 模型
+    :param epochs: 完整的数据集通过了神经网络一次并且返回了一次，这个过程称为一个 epoch。也就是训练几轮。
+    :param loss_fn:使用哪种损失函数 默认使用交叉熵
+        # output是网络的输出，size=[batch_size, class]
+        #如网络的batch size为128，数据分为10类，则size=[128, 10]
+        # target是数据的真实标签，是标量，size=[batch_size]
+        #如网络的batch size为128，则size=[128]
+        crossentropyloss=nn.CrossEntropyLoss()
+        crossentropyloss_output=crossentropyloss(output,target)
+    :param sgd_lr: 梯度下降的学习率
+    :param train_dirpath: 训练数据路径
+    :param val_dirpath: 验证数据路径
+    :return:
+    '''
     # 分布实现训练和预测的transform
     train_transform = transforms.Compose([
         transforms.Grayscale(3),
@@ -86,13 +106,15 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
     val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
 
     for type_id, loader in enumerate([train_loader, val_loader]):
-        print(type_id,loader)
+        print(type_id, loader)
 
-    opt = torch.optim.SGD(sgd_lr, params=model.parameters())
+    opt = torch.optim.SGD(lr=sgd_lr, params=model.parameters())  # 优化函数，model.parameters()为该实例中可优化的参数
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     model.to(device)
-    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=20, gamma=0.1)
+
+    # 对学习率进行等间隔地调整，调整倍数为gamma， 调整的epoch间隔为step_size 。
+    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=20, gamma=0.2)
     max_acc = 0
     epoch_acc = []
     epoch_loss = []
@@ -101,8 +123,8 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
             mean_loss = []
             mean_acc = []
             for images, labels in loader:
-                if type_id == 0:#训练集
-                    # opt_step.step()
+                if type_id == 0:  # 训练集
+                    opt_step.step()  # 调整学习率
                     model.train()
                 else:
                     model.eval()
@@ -119,7 +141,93 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
                 acc = torch.sum(pre_labels == labels) / torch.tensor(labels.shape[0], dtype=torch.float32)
                 mean_loss.append(loss.cpu().detach().numpy())
                 mean_acc.append(acc.cpu().detach().numpy())
-            if type_id == 1:#验证集
+            if type_id == 1:  # 验证集
+                epoch_acc.append(np.mean(mean_acc))
+                epoch_loss.append(np.mean(mean_loss))
+                if max_acc < np.mean(mean_acc):
+                    max_acc = np.mean(mean_acc)
+            print(type_id, np.mean(mean_loss), np.mean(mean_acc))
+
+    print(max_acc)
+    return model
+
+def train(model, epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
+          train_dirpath='./hymenoptera_data/train', val_dirpath='./hymenoptera_data/val'):
+    '''
+
+    :param model: 模型
+    :param epochs: 完整的数据集通过了神经网络一次并且返回了一次，这个过程称为一个 epoch。也就是训练几轮。
+    :param loss_fn:使用哪种损失函数 默认使用交叉熵
+        # output是网络的输出，size=[batch_size, class]
+        #如网络的batch size为128，数据分为10类，则size=[128, 10]
+        # target是数据的真实标签，是标量，size=[batch_size]
+        #如网络的batch size为128，则size=[128]
+        crossentropyloss=nn.CrossEntropyLoss()
+        crossentropyloss_output=crossentropyloss(output,target)
+    :param sgd_lr: 梯度下降的学习率
+    :param train_dirpath: 训练数据路径
+    :param val_dirpath: 验证数据路径
+    :return:
+    '''
+    # 分布实现训练和预测的transform
+    train_transform = transforms.Compose([
+        transforms.Grayscale(3),
+        transforms.RandomResizedCrop(224),  # 随机裁剪一个area然后再resize
+        transforms.RandomHorizontalFlip(),  # 随机水平翻转
+        transforms.Resize(size=(256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+    val_transform = transforms.Compose([
+        transforms.Grayscale(3),
+        transforms.Resize(size=(256, 256)),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+    # 分别实现loader
+    train_dataset = MyDataset(train_dirpath, train_transform)
+    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=32)
+    val_dataset = MyDataset(val_dirpath, val_transform)
+    val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
+
+    for type_id, loader in enumerate([train_loader, val_loader]):
+        print(type_id, loader)
+
+    opt = torch.optim.SGD(lr=sgd_lr, params=model.parameters())  # 优化函数，model.parameters()为该实例中可优化的参数
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
+    model.to(device)
+
+    # 对学习率进行等间隔地调整，调整倍数为gamma， 调整的epoch间隔为step_size 。
+    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=20, gamma=0.2)
+    max_acc = 0
+    epoch_acc = []
+    epoch_loss = []
+    for epoch in range(epochs):
+        for type_id, loader in enumerate([train_loader, val_loader]):
+            mean_loss = []
+            mean_acc = []
+            for images, labels in loader:
+                if type_id == 0:  # 训练集
+                    opt_step.step()  # 调整学习率
+                    model.train()
+                else:
+                    model.eval()
+                images = images.to(device)
+                labels = labels.to(device).long()
+                opt.zero_grad()
+                with torch.set_grad_enabled(type_id == 0):
+                    outputs = model(images)
+                    _, pre_labels = torch.max(outputs, 1)
+                    loss = loss_fn(outputs, labels)
+                if type_id == 0:
+                    loss.backward()
+                    opt.step()
+                acc = torch.sum(pre_labels == labels) / torch.tensor(labels.shape[0], dtype=torch.float32)
+                mean_loss.append(loss.cpu().detach().numpy())
+                mean_acc.append(acc.cpu().detach().numpy())
+            if type_id == 1:  # 验证集
                 epoch_acc.append(np.mean(mean_acc))
                 epoch_loss.append(np.mean(mean_loss))
                 if max_acc < np.mean(mean_acc):
@@ -159,4 +267,5 @@ def train(model, epochs=50, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
 # train_loader = DataLoader(train_dataset, shuffle=True, batch_size=32)
 # val_dataset = MyDataset(val_dirpath, val_transform)
 # val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
-train(get_pre_model())
+
+train(get_pre_model(),10)
