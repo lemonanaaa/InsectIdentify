@@ -7,6 +7,9 @@ from PIL import Image
 
 
 # 实现自己的Dataset方法，主要实现两个方法__len__和__getitem__
+import myTransform
+
+
 class MyDataset(Dataset):
     def __init__(self, dirname, transform=None):
         super(MyDataset, self).__init__()
@@ -79,21 +82,8 @@ def train(epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
     :return:
     '''
     # 分布实现训练和预测的transform
-    train_transform = transforms.Compose([
-        transforms.Grayscale(3),
-        transforms.RandomResizedCrop(224),  # 随机裁剪一个area然后再resize
-        transforms.RandomHorizontalFlip(),  # 随机水平翻转
-        transforms.Resize(size=(256, 256)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
-    val_transform = transforms.Compose([
-        transforms.Grayscale(3),
-        transforms.Resize(size=(256, 256)),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
+    train_transform = myTransform.train_transform
+    val_transform = myTransform.val_transform
     # 分别实现loader
     train_dataset = MyDataset(train_dirpath, train_transform)
     train_loader = DataLoader(train_dataset, shuffle=True, batch_size=32)
@@ -112,7 +102,7 @@ def train(epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
     model.to(device)
 
     # 对学习率进行等间隔地调整，调整倍数为gamma， 调整的epoch间隔为step_size 。
-    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=20, gamma=0.2)
+    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=2, gamma=0.9)
     max_acc = 0
     epoch_acc = []
     epoch_loss = []
@@ -122,8 +112,8 @@ def train(epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
             mean_loss = []
             mean_acc = []
             for images, labels in loader:
+                print(type(images),images.shape) # <class 'torch.Tensor'> torch.Size([32, 3, 256, 256])
                 if type_id == 0:  # 训练集
-                    opt_step.step()  # 调整学习率
                     model.train()
                 else:
                     model.eval()
@@ -131,6 +121,7 @@ def train(epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
                 labels = labels.to(device).long()
                 opt.zero_grad()
                 with torch.set_grad_enabled(type_id == 0):
+                    print(type(images), images.shape)  # <class 'torch.Tensor'> torch.Size([32, 3, 256, 256])
                     outputs = model(images)
                     _, pre_labels = torch.max(outputs, 1)
                     loss = loss_fn(outputs, labels)
@@ -146,10 +137,9 @@ def train(epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
                 if max_acc < np.mean(mean_acc):
                     max_acc = np.mean(mean_acc)
             print(type_id, np.mean(mean_loss), np.mean(mean_acc))
-
+        opt_step.step()  # 调整学习率
     print("max_acc", max_acc)
-
+    torch.save(model, './model/myModel.pkl')
     return model
-
-
 train()
+

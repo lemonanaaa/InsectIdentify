@@ -20,8 +20,9 @@ def get_pre_model(fc_out_features: int, only_train_fc=True):
     return model
 
 
-def get_final_model(dirPath):
-    return None
+def get_myTrained_model(modelPath):
+    model = torch.load(modelPath)
+    return model
 
 
 def print_buffers(model):

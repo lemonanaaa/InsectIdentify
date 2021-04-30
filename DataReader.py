@@ -1,40 +1,58 @@
-from random import random
-from torchvision import transforms
+# import random
+# from torch.utils.data import DataLoader
+# import os
+#
+# from myTransform import train_transform, val_transform
+# from MyDataset import MyDataset
+#
+#
+# def getDataLoader(dirname, percentage=0.9, shuffle=True, batch_size=32):
+#     classes = os.listdir(dirname)
+#     images = []
+#     for i, label in enumerate(classes):
+#         classes_path = dirname + '\\' + label
+#         for image_name in os.listdir(classes_path):
+#             images.append((classes_path + '\\' + image_name, i))
+#     random.shuffle(images)
+#     boundary = int(len(images) * percentage)
+#     trainList = images[:boundary]
+#     train_dataset = MyDataset(classes=classes, images=trainList, transform=train_transform)
+#     train_loader = DataLoader(train_dataset, shuffle=shuffle, batch_size=batch_size)
+#     valList = images[boundary:]
+#     val_dataset = MyDataset(classes=classes, images=valList, transform=val_transform)
+#     val_loader = DataLoader(val_dataset, shuffle=shuffle, batch_size=batch_size)
+#     return train_loader, val_loader, classes
+
+import random
 from torch.utils.data import DataLoader
 import os
+
+from myTransform import train_transform, val_transform
 from MyDataset import MyDataset
 
-train_transform = transforms.Compose([
-    transforms.Grayscale(3),
-    transforms.RandomResizedCrop(224),  # 随机裁剪一个area然后再resize
-    transforms.RandomHorizontalFlip(),  # 随机水平翻转
-    transforms.Resize(size=(256, 256)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
 
-val_transform = transforms.Compose([
-    transforms.Grayscale(3),
-    transforms.Resize(size=(256, 256)),
-    transforms.CenterCrop(224),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
-
-
-def getDataLoader(dirname, percentage=0.9):
+def getDataLoader(dirname, percentage=0.8, shuffle=True, batch_size=32):
     classes = os.listdir(dirname)
-    images = []
-    for i, classes in enumerate(classes):
-        classes_path = dirname + '/' + classes
+    trainList = []
+    valList = []
+    for i, label in enumerate(classes):
+        classes_path = dirname + '\\' + label
+        temp = []
         for image_name in os.listdir(classes_path):
-            images.append((classes_path + '/' + image_name, i))
-    random.shuffle(images)
-    boundary = int(len(images) * percentage)
-    trainList = images[:boundary]
-    train_dataset = MyDataset(classes=classes,images=trainList,transforms=train_transform)
-    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=32)
-    valList = images[boundary:]
-    val_dataset = MyDataset(classes=classes,images=valList,transforms=val_transform)
-    val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
-    return train_loader,val_loader,classes
+            temp.append((classes_path + '\\' + image_name, i))
+        boundary = int(len(temp) * percentage)
+        random.shuffle(temp)
+        for value in temp[:boundary]:
+            # print(value)
+            trainList.append(value)
+        for value in temp[boundary:]:
+            valList.append(value)
+    # random.shuffle(images)
+    # boundary = int(len(images) * percentage)
+    # trainList = images[:boundary]
+    train_dataset = MyDataset(classes=classes, images=trainList, transform=train_transform)
+    train_loader = DataLoader(train_dataset, shuffle=shuffle, batch_size=batch_size)
+    # valList = images[boundary:]
+    val_dataset = MyDataset(classes=classes, images=valList, transform=val_transform)
+    val_loader = DataLoader(val_dataset, shuffle=shuffle, batch_size=batch_size)
+    return train_loader, val_loader, classes

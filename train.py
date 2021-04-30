@@ -1,4 +1,3 @@
-from torchvision import datasets, transforms, models
 import torch
 import numpy as np
 import copy
@@ -7,9 +6,8 @@ from DataReader import getDataLoader
 from getModel import get_pre_model
 
 
-def train(dataPath, epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01):
+def train(dataPath, epochs=20, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01):
     '''
-
     :param model: 模型
     :param epochs: 完整的数据集通过了神经网络一次并且返回了一次，这个过程称为一个 epoch。也就是训练几轮。
     :param loss_fn:使用哪种损失函数 默认使用交叉熵
@@ -33,33 +31,33 @@ def train(dataPath, epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01)
     model.to(device)
 
     # 对学习率进行等间隔地调整，调整倍数为gamma， 调整的epoch间隔为step_size
-    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=5, gamma=0.5)
+    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=4, gamma=0.9)
     max_acc = 0
     epoch_acc = []
     epoch_loss = []
 
-    fcWithMaxAcc = copy.copy(model.fc)
+    fcWithMaxAcc = copy.copy(model.fc)  # 记录准确率最高时的参数
     for epoch in range(epochs):
         # 每个epoch有两个部分，train_loader 和 val_loader
         for type_id, loader in enumerate([train_loader, val_loader]):
             mean_loss = []
             mean_acc = []
             for images, labels in loader:
+                # print(type(images))
                 if type_id == 0:  # 训练集
-                    # opt_step.step()
-                    model.train()
+                    model.train()  # 训练模式
                 else:
-                    model.eval()
+                    model.eval()  # 评估模式
                 images = images.to(device)
                 labels = labels.to(device).long()
-                opt.zero_grad()
+                opt.zero_grad()  # 所有梯度归0
                 with torch.set_grad_enabled(type_id == 0):
                     outputs = model(images)
                     _, pre_labels = torch.max(outputs, 1)
                     loss = loss_fn(outputs, labels)
                 if type_id == 0:
-                    loss.backward()
-                    opt.step()  # 调整学习率
+                    loss.backward()  # 反向传播
+                    opt.step()  # 梯度下降
                 acc = torch.sum(pre_labels == labels) / torch.tensor(labels.shape[0], dtype=torch.float32)
                 mean_loss.append(loss.cpu().detach().numpy())
                 mean_acc.append(acc.cpu().detach().numpy())
@@ -68,10 +66,10 @@ def train(dataPath, epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01)
                 epoch_loss.append(np.mean(mean_loss))
                 if max_acc < np.mean(mean_acc):
                     max_acc = np.mean(mean_acc)
-                    fcWithMaxAcc = copy.copy(model.fc)
+                    fcWithMaxAcc = copy.deepcopy(model.fc)
             print(type_id, np.mean(mean_loss), np.mean(mean_acc))
-
-    print(max_acc)
-    model.fc = copy.copy(fcWithMaxAcc)
-    torch.save(model, './model/myModel'+max_acc+'.pkl')
+        opt_step.step()  # 调整学习率
+    print("max_acc", max_acc)
+    model.fc = copy.deepcopy(fcWithMaxAcc)
+    torch.save(model, './model/myModel2' + max_acc + '.pkl')
     return model
