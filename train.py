@@ -6,7 +6,7 @@ from DataReader import getDataLoader
 from getModel import get_pre_model
 
 
-def train(dataPath, epochs=20, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01):
+def train(dataPath, epochs=30, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01, lossOrMac=False):
     '''
     :param model: 模型
     :param epochs: 完整的数据集通过了神经网络一次并且返回了一次，这个过程称为一个 epoch。也就是训练几轮。
@@ -31,19 +31,22 @@ def train(dataPath, epochs=20, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01)
     model.to(device)
 
     # 对学习率进行等间隔地调整，调整倍数为gamma， 调整的epoch间隔为step_size
-    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=4, gamma=0.9)
+    opt_step = torch.optim.lr_scheduler.StepLR(opt, step_size=10, gamma=0.2)
+
+    min_loss = 10.0
     max_acc = 0
     epoch_acc = []
     epoch_loss = []
 
     fcWithMaxAcc = copy.copy(model.fc)  # 记录准确率最高时的参数
     for epoch in range(epochs):
+        print('第' + str(epoch + 1) + '轮训练')
         # 每个epoch有两个部分，train_loader 和 val_loader
         for type_id, loader in enumerate([train_loader, val_loader]):
             mean_loss = []
             mean_acc = []
             for images, labels in loader:
-                # print(type(images))
+                print(type(images))
                 if type_id == 0:  # 训练集
                     model.train()  # 训练模式
                 else:
@@ -64,12 +67,27 @@ def train(dataPath, epochs=20, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01)
             if type_id == 1:  # 验证集
                 epoch_acc.append(np.mean(mean_acc))
                 epoch_loss.append(np.mean(mean_loss))
+                if lossOrMac:
+                    if min_loss > np.mean(mean_loss):
+                        fcWithMaxAcc = copy.deepcopy(model.fc)
+                else:
+                    if max_acc < np.mean(mean_acc):
+                        fcWithMaxAcc = copy.deepcopy(model.fc)
                 if max_acc < np.mean(mean_acc):
                     max_acc = np.mean(mean_acc)
-                    fcWithMaxAcc = copy.deepcopy(model.fc)
+                if min_loss > np.mean(mean_loss):
+                    min_loss = np.mean(mean_loss)
             print(type_id, np.mean(mean_loss), np.mean(mean_acc))
         opt_step.step()  # 调整学习率
-    print("max_acc", max_acc)
+    print("max_acc", str(max_acc))
+    print("min_loss", str(min_loss))
     model.fc = copy.deepcopy(fcWithMaxAcc)
-    torch.save(model, './model/myModel2' + max_acc + '.pkl')
+    torch.save(model, './model/myModel2' + str(max_acc) + '.pkl')
     return model
+
+
+if __name__ == "__main__":
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # Assuming that we are on a CUDA machine, this should print a CUDA device:
+    print(device)
+    train(dataPath='./data')

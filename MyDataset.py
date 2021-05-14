@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 from PIL import Image
 
+
 # 实现自己的Dataset方法，主要实现两个方法__len__和__getitem__
 class MyDataset(Dataset):
     def __init__(self, classes=[], images=[], transform=None):
@@ -21,4 +22,3 @@ class MyDataset(Dataset):
 
     def get_claesses(self):
         return self.classes
-

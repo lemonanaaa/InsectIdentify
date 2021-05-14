@@ -1,6 +1,5 @@
 from torchvision import transforms
 
-
 train_transform = transforms.Compose([
     transforms.Grayscale(3),
     transforms.RandomResizedCrop(224),  # 随机裁剪一个area然后再resize

@@ -8,7 +8,7 @@ def get_pre_model(fc_out_features: int, only_train_fc=True):
     :param only_train_fc: 是否只训练全连接层
     :return:
     '''
-    model = models.resnet18(pretrained=True)  # 使用预训练
+    model = models.resnet152(pretrained=True)  # 使用预训练
 
     # 先将所有的参数设置为不进行梯度下降
     if only_train_fc:

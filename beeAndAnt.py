@@ -43,7 +43,7 @@ def get_pre_model(fc_out_features: int, only_train_fc=True):
     :param only_train_fc: 是否只训练全连接层
     :return:
     '''
-    model = models.resnet18(pretrained=True)  # 使用预训练
+    model = models.resnet152(pretrained=True)  # 使用预训练
 
     # 先将所有的参数设置为不进行梯度下降
     if only_train_fc:
@@ -86,9 +86,9 @@ def train(epochs=10, loss_fn=torch.nn.CrossEntropyLoss(), sgd_lr=0.01,
     val_transform = myTransform.val_transform
     # 分别实现loader
     train_dataset = MyDataset(train_dirpath, train_transform)
-    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=32)
+    train_loader = DataLoader(train_dataset, shuffle=True, batch_size=64)
     val_dataset = MyDataset(val_dirpath, val_transform)
-    val_loader = DataLoader(val_dataset, shuffle=True, batch_size=32)
+    val_loader = DataLoader(val_dataset, shuffle=True, batch_size=64)
 
     model = get_pre_model(fc_out_features=2)
     print()
